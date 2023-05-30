@@ -1,26 +1,121 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 
 <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link href="https://github.com/abdulloh5007.png" rel="icon">
-    <link href="https://github.com/abdulloh5007.png" rel="apple-touch-icon">
-    <title>Document</title>
-    <link rel="stylesheet" href="./css/style.css">
+    <title>Трансляция экрана</title>
 </head>
 
 <body>
-    <div class="container">
-        <div class="wrapper">
-            <button id="startButton">Начать трансляцию</button>
-            <button id="stopButton">Stop translation</button>
-            <video id="localVideo" autoplay></video>
-            <video id="remoteVideo" autoplay></video>
-        </div>
-    </div>
+    <video id="localVideo" autoplay></video>
+    <video id="remoteVideo" autoplay></video>
+    <button id="startButton">Начать трансляцию</button>
+    <button id="stopButton">Закрыть доступ и отключить трансляцию</button>
+
+    <script>
+        var localVideo = document.getElementById('localVideo');
+        var remoteVideo = document.getElementById('remoteVideo');
+        var startButton = document.getElementById('startButton');
+        var stopButton = document.getElementById('stopButton');
+
+        var localStream;
+        var peerConnection;
+
+        startButton.addEventListener('click', function () {
+            navigator.mediaDevices.getDisplayMedia({ video: true })
+                .then(function (stream) {
+                    localStream = stream;
+                    localVideo.srcObject = stream;
+
+                    peerConnection = new RTCPeerConnection();
+                    stream.getTracks().forEach(function (track) {
+                        peerConnection.addTrack(track, stream);
+                    });
+
+                    peerConnection.createOffer()
+                        .then(function (offer) {
+                            return peerConnection.setLocalDescription(offer);
+                        })
+                        .then(function () {
+                            var offerDescription = peerConnection.localDescription;
+                            // Отправка offerDescription на получающее устройство
+                        })
+                        .catch(function (error) {
+                            console.log(error);
+                        });
+
+                    peerConnection.ontrack = function (event) {
+                        remoteVideo.srcObject = event.streams[0];
+                    };
+
+                    startButton.disabled = true;
+                    stopButton.disabled = false;
+                })
+                .catch(function (error) {
+                    console.log(error);
+                });
+        });
+
+        stopButton.addEventListener('click', function () {
+            localStream.getTracks().forEach(function (track) {
+                track.stop();
+            });
+            localVideo.srcObject = null;
+            remoteVideo.srcObject = null;
+            peerConnection.close();
+
+            startButton.disabled = false;
+            stopButton.disabled = true;
+        });
+
+        // Отправка offerDescription на получающее устройство и получение ответа
+        function handleOfferDescription(offerDescription) {
+            // Отправка offerDescription на получающее устройство и получение ответа
+            var answerDescription = null; // Получите ответное описание от получающего устройства
+            if (answerDescription) {
+                peerConnection.setRemoteDescription(answerDescription)
+                    .then(function () {
+                        console.log('Установлено соединение с удаленным устройством');
+                    })
+                    .catch(function (error) {
+                        console.log('Ошибка установки соединения с удаленным устройством:', error);
+                    });
+            }
+        }
+
+        // Получение answerDescription с удаленного устройства
+        function handleAnswerDescription(answerDescription) {
+            peerConnection.setRemoteDescription(answerDescription)
+                .then(function () {
+                    console.log('Установлено соединение с удаленным устройством');
+                })
+                .catch(function (error) {
+                    console.log('Ошибка установки соединения с удаленным устройством:', error);
+                });
+        }
+
+        // Получение offerDescription с удаленного устройства
+        function handleRemoteOffer(offerDescription) {
+            peerConnection = new RTCPeerConnection();
+            peerConnection.ontrack = function (event) {
+                remoteVideo.srcObject = event.streams[0];
+            };
+
+            peerConnection.setRemoteDescription(offerDescription)
+                .then(function () {
+                    return peerConnection.createAnswer();
+                })
+                .then(function (answer) {
+                    return peerConnection.setLocalDescription(answer);
+                })
+                .then(function () {
+                    var answerDescription = peerConnection.localDescription;
+                    // Отправка answerDescription на отправляющее устройство
+                })
+                .catch(function (error) {
+                    console.log('Ошибка при обработке удаленного предложения:', error);
+                });
+        }
+    </script>
 </body>
-<script src="./js/main.js"></script>
 
 </html>
